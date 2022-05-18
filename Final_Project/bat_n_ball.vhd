@@ -44,11 +44,6 @@ ARCHITECTURE Behavioral OF bat_n_ball IS
     TYPE ball_y_motion_array is array(1 to 50) of std_logic_vector(10 DOWNTO 0);
     SIGNAL ball_y_motion_vec : ball_y_motion_array; -- y velocity of each ball
     
-
-    
-    -- current ball position - intitialized to center of screen
-    --SIGNAL ball_x : STD_LOGIC_VECTOR(10 DOWNTO 0) := CONV_STD_LOGIC_VECTOR(bat_x(0), 11);
-    --SIGNAL ball_y : STD_LOGIC_VECTOR(10 DOWNTO 0) := CONV_STD_LOGIC_VECTOR(300, 11);
 BEGIN  
     red <= NOT bat_on; -- color setup for red ball and cyan bat on white background
     green <= NOT ball_on;
@@ -56,33 +51,37 @@ BEGIN
     
     -- process to draw round ball
     -- set ball_on if current pixel address is covered by ball position
+    
     balldraw : PROCESS (ball_x_vec, ball_y_vec, pixel_row, pixel_col, ball_count) IS
-        --VARIABLE vx, vy : STD_LOGIC_VECTOR (10 DOWNTO 0); -- 9 downto 0
-        TYPE x is array(0 to 50) of STD_LOGIC_VECTOR (10 DOWNTO 0);
-        VARIABLE vx : x;
-        TYPE y is array(0 to 50) of STD_LOGIC_VECTOR (10 DOWNTO 0);
-        VARIABLE vy : y;
+        VARIABLE vx, vy : STD_LOGIC_VECTOR (10 DOWNTO 0); -- 9 downto 0
+        --TYPE x is array(0 to 50) of STD_LOGIC_VECTOR (10 DOWNTO 0);
+        --VARIABLE vx : x;
+        --TYPE y is array(0 to 50) of STD_LOGIC_VECTOR (10 DOWNTO 0);
+        --VARIABLE vy : y;
     BEGIN
         FOR I in 1 to 50 LOOP
             IF I <= ball_count THEN
                 IF pixel_col <= ball_x_vec(I) THEN -- vx = |ball_x - pixel_col|
-                    vx(I) := ball_x_vec(I) - pixel_col;
+                    vx := ball_x_vec(I) - pixel_col;
                 ELSE
-                    vx(I) := pixel_col - ball_x_vec(I);
+                    vx := pixel_col - ball_x_vec(I);
                 END IF;
+
                 IF pixel_row <= ball_y_vec(I) THEN -- vy = |ball_y - pixel_row|
-                    vy(I) := ball_y_vec(I) - pixel_row;
+                    vy := ball_y_vec(I) - pixel_row;
                 ELSE
-                    vy(I) := pixel_row - ball_y_vec(I);
+                    vy := pixel_row - ball_y_vec(I);
                 END IF;
-                IF ((vx(I) * vx(I)) + (vy(I) * vy(I))) < (bsize * bsize) THEN -- test if radial distance < bsize
-                    ball_on <= game_on;
+
+                IF ((vx * vx) + (vy * vy)) < (bsize * bsize) THEN -- test if radial distance < bsize
+                    ball_on <= ball_on OR game_on;
                 ELSE
                     ball_on <= '0';
                 END IF;
             END IF;
         END LOOP;
     END PROCESS;
+    
     -- process to draw bat
     -- set bat_on if current pixel address is covered by bat position
     batdraw : PROCESS (bat_x, pixel_row, pixel_col) IS
@@ -127,11 +126,6 @@ BEGIN
                             ball_y_vec(J) <= ball_y_vec(J+1);
                             ball_x_motion_vec(J) <= ball_x_motion_vec(J+1);
                             ball_y_motion_vec(J) <= ball_y_motion_vec(J+1);
-                        ELSE
-                           ball_x_vec(J) <= CONV_STD_LOGIC_VECTOR(bat_x(0), 11);
-                           ball_y_vec(J) <= CONV_STD_LOGIC_VECTOR(bat_y(0), 11);
-                           ball_x_motion_vec(J) <= CONV_STD_LOGIC_VECTOR(0, 11);
-                           ball_y_motion_vec(J) <= CONV_STD_LOGIC_VECTOR(0, 11); 
                         END IF;
                     END LOOP;
                     ball_count <= ball_count - 1;
@@ -150,14 +144,15 @@ BEGIN
                 (ball_y_vec(I) - bsize/2) <= (bat_y + bat_h) THEN
                     ball_y_motion_vec(I) <= (NOT ball_speed) + 1; -- set vspeed to (- ball_speed) pixels
                 END IF;
+            END IF;
                 -- compute next ball vertical position
                 -- variable temp adds one more bit to calculation to fix unsigned underflow problems
                 -- when ball_y is close to zero and ball_y_motion is negative
                 t :=  ball_y_motion_vec(I);
                 temp(I) := ('0' & ball_y_vec(I)) + (t(10) & ball_y_motion_vec(I));
                 temp2 := temp(I);
-                IF game_on = '0' THEN
-                    ball_y_vec(I) <= CONV_STD_LOGIC_VECTOR(440, 11);
+                IF game_on = '0' OR ball_count < I THEN
+                    ball_y_vec(I) <= CONV_STD_LOGIC_VECTOR(bat_y(0), 11);
                 ELSIF temp2(11) = '1' THEN
                     ball_y_vec(I) <= (OTHERS => '0');
                 ELSE ball_y_vec(I) <= temp2(10 DOWNTO 0); -- 9 downto 0
@@ -173,7 +168,7 @@ BEGIN
                     ball_x_vec(I) <= (OTHERS => '0');
                 ELSE ball_x_vec(I) <= temp2(10 DOWNTO 0);
                 END IF;
-            END IF;
+            
         END LOOP;
     END PROCESS;
 END Behavioral;
